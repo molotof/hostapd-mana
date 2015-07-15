@@ -1,9 +1,9 @@
-hostapd MANA w/RTL8188 chipsets!
+hostapd MANA w/RTL8188/8192 chipsets!
 ================
 This project is a fork off of the Mana-Toolkit's modified hostapd (sensepost/hostapd-mana).
 Functionality of their HostAPD has not been changed, I have just bundled a couple different projects together.
 
-Added Realtek's RTL8188 driver to HostAPD from http://www.realtek.com/downloads/downloadsView.aspx?Langid=1&PNid=21&PFid=48&Level=5&Conn=4&DownTypeID=3&GetDown=false&Downloads=true
+Added Realtek's RTL8188/8192 driver to HostAPD from http://www.realtek.com/downloads/downloadsView.aspx?Langid=1&PNid=21&PFid=48&Level=5&Conn=4&DownTypeID=3&GetDown=false&Downloads=true
 
 Patched Realtek's drivers with pritambaral/hostapd-rtl871xdrv's patches and modified drivers
 
