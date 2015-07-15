@@ -1,3 +1,18 @@
+hostapd MANA w/RTL8188 chipsets!
+================
+This project is a fork off of the Mana-Toolkit's modified hostapd (sensepost/hostapd-mana).
+Functionality of their HostAPD has not been changed, I have just bundled a couple different projects together.
+
+Added Realtek's RTL8188 driver to HostAPD from http://www.realtek.com/downloads/downloadsView.aspx?Langid=1&PNid=21&PFid=48&Level=5&Conn=4&DownTypeID=3&GetDown=false&Downloads=true
+Patched Realtek's drivers with pritambaral/hostapd-rtl871xdrv's patches and modified drivers
+Patched with OpenWRT's No-scan patch https://dev.openwrt.org/browser/trunk/package/network/services/hostapd/patches/300-noscan.patch
+
+The goal of this was to add better pen-testing support for the Raspberry Pi/Pi 2. Many Raspberry Pi users rely on the RTL8188 chipsets
+due to their small size and low power usage. Unfortunately, this chipset isn't supported in AP mode in HostAPD, natively. Thus, making
+it more difficult to take advantage of the Pi's small size and concealability. This project aims to close that gap.
+
+I will do my best to update this as HostAPD-Mana/HostAPD are updated.
+
 hostapd MANA
 ================
 by Dominic White (singe) & Ian de Villiers @ sensepost (research@sensepost.com)
