@@ -22,7 +22,8 @@
 
 #include "common.h"
 
-#include "wireless_copy.h"
+/*#include "wireless_copy.h"*/
+#include "linux_wext.h"
 
 #include "driver.h"
 #include "eloop.h"
@@ -297,11 +298,11 @@ static int rtl871x_get_sta_wpaie(struct rtl871x_driver_data *drv, u8 *iebuf, u8 
 
 	printf("+%s, " MACSTR " is sta's address\n", __func__, MAC2STR(addr));
 
-	os_memset(&param, 0, sizeof(param));
+	memset(&param, 0, sizeof(param));
 
 	param.cmd = RTL871X_HOSTAPD_GET_WPAIE_STA;
 	
-	os_memcpy(param.sta_addr, addr, ETH_ALEN);
+	memcpy(param.sta_addr, addr, ETH_ALEN);
 	
 	if (rtl871x_hostapd_ioctl(drv, &param, sizeof(param))) {
 		printf("Could not get sta wpaie from kernel driver.\n");
@@ -312,7 +313,7 @@ static int rtl871x_get_sta_wpaie(struct rtl871x_driver_data *drv, u8 *iebuf, u8 
 	if(param.u.wpa_ie.len > 32)
 		return -1;
 
-	os_memcpy(iebuf, param.u.wpa_ie.reserved, param.u.wpa_ie.len);
+	memcpy(iebuf, param.u.wpa_ie.reserved, param.u.wpa_ie.len);
 	
 	return 0;	
 
@@ -371,7 +372,7 @@ static int rtl871x_new_sta(struct rtl871x_driver_data *drv, u8 *addr)
 	 */
 	//memset(&ie, 0, sizeof(ie));
 	//memcpy(ie.wpa_macaddr, addr, IEEE80211_ADDR_LEN);
-	os_memset(iebuf, 0 , sizeof(iebuf));
+	memset(iebuf, 0 , sizeof(iebuf));
 	if (rtl871x_get_sta_wpaie(drv, iebuf, addr)) {
 	//if (set80211priv(drv, IEEE80211_IOCTL_GETWPAIE, &ie, sizeof(ie))) {
 		
@@ -415,10 +416,10 @@ no_ie:
 	//drv_event_assoc(hapd, addr, piebuf, ielen);
 	drv_event_assoc(hapd, addr, piebuf, ielen, 0);
 
-	if (os_memcmp(addr, drv->acct_mac, ETH_ALEN) == 0) {
+	if (memcmp(addr, drv->acct_mac, ETH_ALEN) == 0) {
 		/* Cached accounting data is not valid anymore. */
-		os_memset(drv->acct_mac, 0, ETH_ALEN);
-		os_memset(&drv->acct_data, 0, sizeof(drv->acct_data));
+		memset(drv->acct_mac, 0, ETH_ALEN);
+		memset(&drv->acct_data, 0, sizeof(drv->acct_data));
 	}
 
 	return res;
@@ -437,7 +438,7 @@ static void rtl871x_wireless_event_wireless(struct rtl871x_driver_data *drv,
 	while (pos + IW_EV_LCP_LEN <= end) {
 		/* Event data may be unaligned, so make a local, aligned copy
 		 * before processing. */
-		os_memcpy(&iwe_buf, pos, IW_EV_LCP_LEN);
+		memcpy(&iwe_buf, pos, IW_EV_LCP_LEN);
 		wpa_printf(MSG_MSGDUMP, "Wireless event: cmd=0x%x len=%d",
 			   iwe->cmd, iwe->len);
 		if (iwe->len <= IW_EV_LCP_LEN)
@@ -450,10 +451,10 @@ static void rtl871x_wireless_event_wireless(struct rtl871x_driver_data *drv,
 			/* WE-19 removed the pointer from struct iw_point */
 			char *dpos = (char *) &iwe_buf.u.data.length;
 			int dlen = dpos - (char *) &iwe_buf;
-			os_memcpy(dpos, pos + IW_EV_LCP_LEN,
+			memcpy(dpos, pos + IW_EV_LCP_LEN,
 			       sizeof(struct iw_event) - dlen);
 		} else {
-			os_memcpy(&iwe_buf, pos, sizeof(struct iw_event));
+			memcpy(&iwe_buf, pos, sizeof(struct iw_event));
 			custom += IW_EV_POINT_OFF;
 		}
 
@@ -472,10 +473,10 @@ static void rtl871x_wireless_event_wireless(struct rtl871x_driver_data *drv,
 		case IWEVCUSTOM:
 			if (custom + iwe->u.data.length > end)
 				return;
-			buf = os_malloc(iwe->u.data.length + 1);
+			buf = malloc(iwe->u.data.length + 1);
 			if (buf == NULL)
 				return;		/* XXX */
-			os_memcpy(buf, custom, iwe->u.data.length);
+			memcpy(buf, custom, iwe->u.data.length);
 			buf[iwe->u.data.length] = '\0';
 			//madwifi_wireless_event_wireless_custom(drv, buf);			
 			free(buf);
@@ -1035,18 +1036,11 @@ static struct hostapd_hw_modes *rtl871x_get_hw_feature_data_ops(void *priv,
 	if (modes[0].channels == NULL || modes[0].rates == NULL)
 		goto fail;
 	for (i = 0; i < MAX_NUM_CHANNEL; i++) {
-	
 		modes[0].channels[i].chan = i + 1;
-
-		if(i==13) //channel=14
-			modes[0].channels[i].freq = 2484;
-		else
-			modes[0].channels[i].freq = 2412 + 5 * i;
-
+		modes[0].channels[i].freq = 2412 + 5 * i;
 		modes[0].channels[i].flag = 0;
-		
-		//if (i >= 13)
-		//	modes[0].channels[i].flag = HOSTAPD_CHAN_DISABLED;
+		if (i >= 13)
+			modes[0].channels[i].flag = HOSTAPD_CHAN_DISABLED;
 	}
 	modes[0].rates[0] = 10;
 	modes[0].rates[1] = 20;
@@ -1320,9 +1314,9 @@ static int rtl871x_sta_remove_ops(void *priv, const u8 *addr)
 
 	//hostap_sta_set_flags(drv, addr, 0, 0, ~WLAN_STA_AUTHORIZED);
 
-	os_memset(&param, 0, sizeof(param));
+	memset(&param, 0, sizeof(param));
 	param.cmd = RTL871X_HOSTAPD_REMOVE_STA;
-	os_memcpy(param.sta_addr, addr, ETH_ALEN);
+	memcpy(param.sta_addr, addr, ETH_ALEN);
 	if (rtl871x_hostapd_ioctl(drv, &param, sizeof(param))) {
 		printf("Could not remove station from kernel driver.\n");
 		return -1;
@@ -1334,211 +1328,96 @@ static int rtl871x_sta_remove_ops(void *priv, const u8 *addr)
 
 #define RTL871X_HIDDEN_SSID_SUPPORT
 #ifdef RTL871X_HIDDEN_SSID_SUPPORT
-static int rtl871x_set_hidden_ssid(struct rtl871x_driver_data *drv)
+static int rtl871x_set_hidden_ssid_ops(const char *iface, void *priv, u8 value)
 {
 	int ret;
-	ieee_param pparam;
-	struct hostapd_data *hapd = drv->hapd;
-	size_t sz;
-	
-	printf("%s ignore_broadcast_ssid:%d, %s,%d\n", __func__
-		, hapd->conf->ignore_broadcast_ssid
-		, hapd->conf->ssid.ssid
-		, hapd->conf->ssid.ssid_len
-	);		
-
-	pparam.cmd = RTL871X_HOSTAPD_SET_HIDDEN_SSID;
-
-	pparam.u.bcn_ie.reserved[0] = 0xea;
-	pparam.u.bcn_ie.reserved[1] = (u8)hapd->conf->ignore_broadcast_ssid;
-
-	pparam.u.bcn_ie.buf[0] = WLAN_EID_SSID;
-	pparam.u.bcn_ie.buf[1] = (u8)hapd->conf->ssid.ssid_len;
-	memcpy(pparam.u.bcn_ie.buf+2, hapd->conf->ssid.ssid, hapd->conf->ssid.ssid_len);
-
-	sz = hapd->conf->ssid.ssid_len + 2 + 12 + 2;// 12+2 = cmd+sta_addr+reserved, sizeof(ieee_param)=64, no packed
-
-	ret = rtl871x_hostapd_ioctl(drv, &pparam, sz);
-
-	return ret;	
-}
-#endif //RTL871X_HIDDEN_SSID_SUPPORT
-
-static int rtl871x_set_acl_mode(struct rtl871x_driver_data *drv)
-{
-	ieee_param *param;	
-	u8 *buf;	
-	size_t blen;
-	int ret = 0;
-	int mode = 0;
-	struct hostapd_data *hapd = drv->hapd;
-
-	if(hapd->conf->macaddr_acl  == ACCEPT_UNLESS_DENIED)
-		mode = 1;
-	else if(hapd->conf->macaddr_acl  == DENY_UNLESS_ACCEPTED)
-		mode = 2;
-	else
-		mode = 0;
-
-
-	printf("%s, %d\n", __func__, mode);
-
-	
-	blen = sizeof(*param);
-	buf = os_zalloc(blen);
-	if (buf == NULL)
-		return -1;
-
-	param = (ieee_param *)buf;
-	param->cmd = RTL871X_HOSTAPD_SET_MACADDR_ACL;
-
-	param->u.mlme.command = mode;
-	
-	if (rtl871x_hostapd_ioctl(drv, param, blen)) {
-		printf("Failed to set ACL mode.\n");
-		ret = -1;
-	}
-	
-	os_free(buf);
-
-	return ret;
-}
-
-static int rtl871x_set_acl_add_sta(struct rtl871x_driver_data *drv, const u8 *addr)
-{
-	ieee_param *param;	
-	u8 *buf;	
-	size_t blen;	
-	int ret = 0;
-
-	blen = sizeof(*param);
-	buf = os_zalloc(blen);
-	if (buf == NULL)
-		return -1;
-
-	param = (ieee_param *)buf;
-	param->cmd = RTL871X_HOSTAPD_ACL_ADD_STA;
-
-	if (addr == NULL)
-		os_memset(param->sta_addr, 0xff, ETH_ALEN);
-	else
-		os_memcpy(param->sta_addr, addr, ETH_ALEN);
-	
-	if (rtl871x_hostapd_ioctl(drv, param, blen)) {
-		printf("Failed to set ACL mac addr.\n");
-		ret = -1;
-	}
-		
-	os_free(buf);
-
-	return ret;	
-	
-
-}
-
-static int rtl871x_set_acl_remove_sta(struct rtl871x_driver_data *drv, const u8 *addr)
-{
-	ieee_param *param;	
-	u8 *buf;	
-	size_t blen;	
-	int ret = 0;
-
-	blen = sizeof(*param);
-	buf = os_zalloc(blen);
-	if (buf == NULL)
-		return -1;
-
-	param = (ieee_param *)buf;
-	param->cmd = RTL871X_HOSTAPD_ACL_REMOVE_STA;
-
-	if (addr == NULL)
-		os_memset(param->sta_addr, 0xff, ETH_ALEN);
-	else
-		os_memcpy(param->sta_addr, addr, ETH_ALEN);
-	
-	if (rtl871x_hostapd_ioctl(drv, param, blen)) {
-		printf("Failed to clear ACL mac addr.\n");
-		ret = -1;
-	}
-		
-	os_free(buf);
-
-	return ret;	
-
-}
-	
-static int rtl871x_set_acl_filter(struct rtl871x_driver_data *drv)
-{
-	int ret = 0;
-	int i, num_entry = 0;
-	struct mac_acl_entry *mac_entry = NULL;
-	struct hostapd_data *hapd = drv->hapd;
-
-	if(hapd->conf->macaddr_acl  == ACCEPT_UNLESS_DENIED &&
-		hapd->conf->num_deny_mac > 0)
-	{
-		mac_entry = hapd->conf->deny_mac;
-		num_entry = hapd->conf->num_deny_mac;
-	}
-	else if (hapd->conf->macaddr_acl  == DENY_UNLESS_ACCEPTED &&
-		hapd->conf->num_accept_mac > 0)
-	{
-		mac_entry = hapd->conf->accept_mac;
-		num_entry = hapd->conf->num_accept_mac;
-	}
-	
-	printf("%s, num_entry=%d\n", __func__, num_entry);
-
-	if(mac_entry==NULL || num_entry==0)
-		return -1;
-
-	for(i=0; i<num_entry; i++)
-	{
-		ret = rtl871x_set_acl_add_sta(drv, (const u8 *)((mac_entry+i)->addr));
-	}
-
-	return ret;	
-	
-}
-
-static int rtl871x_set_acl(struct rtl871x_driver_data *drv)
-{	
+	ieee_param pparam;	
+	struct rtl871x_driver_data *drv = priv;
 	struct hostapd_data *hapd = drv->hapd;
 
 	printf("%s\n", __func__);
 
-	if(hapd->conf->num_accept_mac > 0 ||
-		hapd->conf->num_deny_mac > 0)
-	{
-		rtl871x_set_acl_mode(drv);
-	
-		rtl871x_set_acl_filter(drv);
+	pparam.cmd = RTL871X_HOSTAPD_SET_HIDDEN_SSID;
+	pparam.u.wpa_param.name = 0;
+	pparam.u.wpa_param.value = value;
 
-		return 0;
-	}
+	ret = rtl871x_hostapd_ioctl(drv, &pparam, sizeof(ieee_param));
 
-	return -1;
+	return ret;	
 }
 
-//static int rtl871x_set_beacon_ops(const char *iface, void *priv,
-//			   u8 *head, size_t head_len,
-//			   u8 *tail, size_t tail_len)
-static int rtl871x_set_beacon_ops(void *priv, const u8 *head, size_t head_len,
-			  const u8 *tail, size_t tail_len, int dtim_period,
-			  int beacon_int)
+static const u8 * get_ie(u8 *ies, size_t ies_len, u8 id)
+{
+	const u8 *end, *pos;
+
+	pos = ies;
+	end = pos + ies_len;
+
+	while (pos + 1 < end) {
+		if (pos + 2 + pos[1] > end)
+			break;
+
+		//printf("id:%u, clen:%u\n", pos[0], pos[1]);
+		
+		if (pos[0] == id)
+			return pos;
+		pos += 2 + pos[1];
+	}
+
+	return NULL;
+}
+#endif //RTL871X_HIDDEN_SSID_SUPPORT
+
+static int rtl871x_set_beacon_ops(void *priv, struct wpa_driver_ap_params *params)
 {
 	int ret;
 	size_t sz;
 	ieee_param *pparam;
 	struct rtl871x_driver_data *drv = priv;
 	struct hostapd_data *hapd = drv->hapd;
+
+	u8 *ssid_ie;
+	u8 ssid_len;
+	u8 expend_len = 0;
 	
-	if((head_len<24) ||(!head))
+	if((params->head_len<24) ||(!params->head))
 		return -1;
 
 	printf("%s\n", __func__);
 
-	sz = head_len+tail_len+12-24 + 2;// 12+2 = cmd+sta_addr+reserved, sizeof(ieee_param)=64, no packed
+
+#ifdef RTL871X_HIDDEN_SSID_SUPPORT
+	rtl871x_set_hidden_ssid_ops(drv->iface, priv, hapd->conf->ignore_broadcast_ssid);
+
+	ssid_ie = get_ie((params->head+24+12), (params->head_len-24-12), WLAN_EID_SSID);
+	
+	if(hapd->conf->ignore_broadcast_ssid == 2)
+	{
+		ssid_len = ssid_ie[1];
+		
+		//confirm the ssid_len
+		if(ssid_len != hapd->conf->ssid.ssid_len) 
+		{
+			printf("%s ssid_len(%u) != hapd->conf->ssid.ssid_len(%u)!!\n", __func__
+				, ssid_len, hapd->conf->ssid.ssid_len
+			);
+		}
+
+		memcpy(ssid_ie+2, hapd->conf->ssid.ssid, ssid_len);
+	}
+	else if(hapd->conf->ignore_broadcast_ssid == 1)
+	{
+		expend_len = hapd->conf->ssid.ssid_len;
+		printf("%s ignore_broadcast_ssid:%d, %s,%d, expend_len:%u\n", __func__
+			, hapd->conf->ignore_broadcast_ssid
+			, hapd->conf->ssid.ssid
+			, hapd->conf->ssid.ssid_len
+			, expend_len
+		);		
+	}
+#endif //RTL871X_HIDDEN_SSID_SUPPORT
+
+	sz = params->head_len+params->tail_len+12-24 + 2 + expend_len;// 12+2 = cmd+sta_addr+reserved, sizeof(ieee_param)=64, no packed
 	pparam = os_zalloc(sz);
 	if (pparam == NULL) {
 		return -ENOMEM;
@@ -1546,23 +1425,35 @@ static int rtl871x_set_beacon_ops(void *priv, const u8 *head, size_t head_len,
 
 	pparam->cmd = RTL871X_HOSTAPD_SET_BEACON;
 
-	os_memcpy(pparam->u.bcn_ie.reserved, &hapd->conf->max_num_sta, 2);//for set max_num_sta
+	memcpy(pparam->u.bcn_ie.reserved, &hapd->conf->max_num_sta, 2);//for set max_num_sta
 
-	os_memcpy(pparam->u.bcn_ie.buf, (head+24), (head_len-24));// 24=beacon header len.
+#ifdef RTL871X_HIDDEN_SSID_SUPPORT
+	if(hapd->conf->ignore_broadcast_ssid == 1)
+	{
+		u8 *ssid_ie_next = params->head+24+12+2;
+		size_t head_remain_len = params->head_len-24-12-2;
 
-	os_memcpy(&pparam->u.bcn_ie.buf[head_len-24], tail, tail_len);
+		memcpy(pparam->u.bcn_ie.buf, (params->head+24), 12); 
+		
+		pparam->u.bcn_ie.buf[12] = WLAN_EID_SSID;
+		pparam->u.bcn_ie.buf[13] = expend_len;
+		memcpy(pparam->u.bcn_ie.buf+12+2, hapd->conf->ssid.ssid, expend_len);
+		
+		memcpy(pparam->u.bcn_ie.buf+12+2+expend_len, ssid_ie_next, head_remain_len);// 24=beacon header len.	
+		memcpy(&pparam->u.bcn_ie.buf[params->head_len-24+expend_len], params->tail, params->tail_len);
+	}
+	else
+#endif //RTL871X_HIDDEN_SSID_SUPPORT
+	{
+		memcpy(pparam->u.bcn_ie.buf, (params->head+24), (params->head_len-24));// 24=beacon header len.
+		memcpy(&pparam->u.bcn_ie.buf[params->head_len-24], params->tail, params->tail_len);
+	}
 	
 	ret = rtl871x_hostapd_ioctl(drv, pparam, sz);
 
 	os_free(pparam);
 
 	//rtl871x_set_max_num_sta(drv);
-
-	#ifdef RTL871X_HIDDEN_SSID_SUPPORT
-	rtl871x_set_hidden_ssid(drv);
-	#endif
-
-	rtl871x_set_acl(drv);
 	
 	return ret;
 	
@@ -1599,9 +1490,9 @@ static int rtl871x_set_key_ops(const char *ifname, void *priv, enum wpa_alg alg,
 	param = (ieee_param *)buf;
 	param->cmd = RTL871X_SET_ENCRYPTION;
 	if (addr == NULL)
-		os_memset(param->sta_addr, 0xff, ETH_ALEN);
+		memset(param->sta_addr, 0xff, ETH_ALEN);
 	else
-		os_memcpy(param->sta_addr, addr, ETH_ALEN);
+		memcpy(param->sta_addr, addr, ETH_ALEN);
 
 
 	switch (alg) {
@@ -1635,7 +1526,7 @@ static int rtl871x_set_key_ops(const char *ifname, void *priv, enum wpa_alg alg,
 	param->u.crypt.key_len = key_len;
 	
 	//memcpy((u8 *) (param + 1), key, key_len);
-	os_memcpy(param->u.crypt.key, key, key_len);
+	memcpy(param->u.crypt.key, key, key_len);
 
 	if (rtl871x_hostapd_ioctl(drv, param, blen)) {
 		printf("Failed to set encryption.\n");
@@ -1707,15 +1598,15 @@ static int rtl871x_sta_deauth_ops(void *priv, const u8 *own_addr, const u8 *addr
 	struct rtl871x_driver_data *drv = priv;
 	struct ieee80211_mgmt mgmt;
 
-	os_memset(&mgmt, 0, sizeof(mgmt));
+	memset(&mgmt, 0, sizeof(mgmt));
 	mgmt.frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
 					  WLAN_FC_STYPE_DEAUTH);
 	
-	os_memcpy(mgmt.da, addr, ETH_ALEN);
+	memcpy(mgmt.da, addr, ETH_ALEN);
 	//memcpy(mgmt.sa, drv->hapd->own_addr, ETH_ALEN);
 	//memcpy(mgmt.bssid, drv->hapd->own_addr, ETH_ALEN);
-	os_memcpy(mgmt.sa, own_addr, ETH_ALEN);
-	os_memcpy(mgmt.bssid, own_addr, ETH_ALEN);
+	memcpy(mgmt.sa, own_addr, ETH_ALEN);
+	memcpy(mgmt.bssid, own_addr, ETH_ALEN);
 	mgmt.u.deauth.reason_code = host_to_le16(reason);
 
 	return rtl871x_send_mgmt_frame_ops(drv, &mgmt, IEEE80211_HDRLEN +
@@ -1733,15 +1624,15 @@ static int rtl871x_sta_disassoc_ops(void *priv, const u8 *own_addr, const u8 *ad
 	struct rtl871x_driver_data *drv = priv;
 	struct ieee80211_mgmt mgmt;
 
-	os_memset(&mgmt, 0, sizeof(mgmt));
+	memset(&mgmt, 0, sizeof(mgmt));
 	mgmt.frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
 					  WLAN_FC_STYPE_DISASSOC);
 	
-	os_memcpy(mgmt.da, addr, ETH_ALEN);
+	memcpy(mgmt.da, addr, ETH_ALEN);
 	//memcpy(mgmt.sa, drv->hapd->own_addr, ETH_ALEN);
 	//memcpy(mgmt.bssid, drv->hapd->own_addr, ETH_ALEN);
-	os_memcpy(mgmt.sa, own_addr, ETH_ALEN);
-	os_memcpy(mgmt.bssid, own_addr, ETH_ALEN);
+	memcpy(mgmt.sa, own_addr, ETH_ALEN);
+	memcpy(mgmt.bssid, own_addr, ETH_ALEN);
 	
 	mgmt.u.disassoc.reason_code = host_to_le16(reason);
 	
@@ -1769,7 +1660,7 @@ static int rtl871x_set_wps_assoc_resp_ie(struct rtl871x_driver_data *drv, const 
 		
 	if(ie && len>0)
 	{
-		os_memcpy(pparam->u.bcn_ie.buf, ie, len);
+		memcpy(pparam->u.bcn_ie.buf, ie, len);
 	}
 
 	ret = rtl871x_hostapd_ioctl(drv, pparam, sz);
@@ -1799,7 +1690,7 @@ static int rtl871x_set_wps_beacon_ie(struct rtl871x_driver_data *drv, const void
 		
 	if(ie && len>0)
 	{
-		os_memcpy(pparam->u.bcn_ie.buf, ie, len);
+		memcpy(pparam->u.bcn_ie.buf, ie, len);
 	}
 
 	ret = rtl871x_hostapd_ioctl(drv, pparam, sz);
@@ -1829,7 +1720,7 @@ static int rtl871x_set_wps_probe_resp_ie(struct rtl871x_driver_data *drv, const 
 		
 	if(ie && len>0)
 	{
-		os_memcpy(pparam->u.bcn_ie.buf, ie, len);
+		memcpy(pparam->u.bcn_ie.buf, ie, len);
 	}
 
 	ret = rtl871x_hostapd_ioctl(drv, pparam, sz);
@@ -1864,71 +1755,12 @@ static int rtl871x_sta_flush_ops(void *priv)
 	ieee_param param;
 	struct rtl871x_driver_data *drv = priv;	
 
-	os_memset(&param, 0, sizeof(param));
+	memset(&param, 0, sizeof(param));
 	
 	param.cmd = RTL871X_HOSTAPD_FLUSH;	
 	
 	return rtl871x_hostapd_ioctl(drv, &param, sizeof(param));
 }
-
-static int rtl871x_set_rts_threshold(void *priv, int rts)
-{
-	struct iwreq iwr;
-	struct rtl871x_driver_data *drv = priv;
-
-	printf("%s, rts=%d\n", __func__, rts);
-
-	if (drv->ioctl_sock < 0)
-		return -1;
-	
-	os_memset(&iwr, 0, sizeof(iwr));
-
-	os_strlcpy(iwr.ifr_name, drv->iface, IFNAMSIZ);
-
-	if (rts < 0 || rts > 2346)
-		iwr.u.rts.disabled = 1;
-	
-	iwr.u.rts.value = rts;
-	
-	if (ioctl(drv->ioctl_sock, SIOCSIWRTS, &iwr) < 0) {
-		perror("ioctl[SIOCSIWRTS]");
-		printf("Could not set rts threshold(%d)!\n", rts);
-		//return -1;
-	}
-
-	return 0;
-	
-}
-
-static int rtl871x_set_frag_threshold(void *priv, int frag)
-{
-	struct iwreq iwr;
-	struct rtl871x_driver_data *drv = priv;
-
-	printf("%s, frag=%d\n", __func__, frag);
-
-	if (drv->ioctl_sock < 0)
-		return -1;
-	
-	os_memset(&iwr, 0, sizeof(iwr));
-
-	os_strlcpy(iwr.ifr_name, drv->iface, IFNAMSIZ);
-
-	if (frag < 256 || frag > 2346)
-		iwr.u.frag.disabled = 1;
-	
-	iwr.u.frag.value = frag;
-	
-	if (ioctl(drv->ioctl_sock, SIOCSIWFRAG, &iwr) < 0) {
-		perror("ioctl[SIOCSIWFRAG]");
-		printf("Could not set frag threshold(%d)!\n", frag);
-		//return -1;
-	}
-
-	return 0;
-	
-}
-
 
 static void *rtl871x_driver_init_ops(struct hostapd_data *hapd, struct wpa_init_params *params)
 {
@@ -2083,7 +1915,7 @@ bad:
 #endif
 	
 	if (drv != NULL)
-		os_free(drv);
+		free(drv);
 	
 	return NULL;
 	
@@ -2148,7 +1980,7 @@ const struct wpa_driver_ops wpa_driver_rtw_ops = {
 	//.sta_add = rtl871x_sta_add_ops,
 	//.sta_add2 = rtl871x_sta_add2_ops,
 	.sta_remove = rtl871x_sta_remove_ops,
-	.set_beacon = rtl871x_set_beacon_ops,
+	.set_ap = rtl871x_set_beacon_ops,
 	//.set_encryption = rtl871x_set_encryption_ops,
 	.set_key = rtl871x_set_key_ops,
 	.sta_deauth = rtl871x_sta_deauth_ops,
@@ -2157,7 +1989,5 @@ const struct wpa_driver_ops wpa_driver_rtw_ops = {
 	//.set_wps_probe_resp_ie = rtl871x_set_wps_probe_resp_ie_ops,
 	.set_ap_wps_ie = rtl871x_set_ap_wps_ie,
 	.flush			= rtl871x_sta_flush_ops,
-	.set_rts = rtl871x_set_rts_threshold,
-	.set_frag = rtl871x_set_frag_threshold,
 };
 
