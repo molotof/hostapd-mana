@@ -1,0 +1,12 @@
+--- src/ap/ieee802_11_ht.c
++++ src/ap/ieee802_11_ht.c
+@@ -221,6 +221,9 @@ void hostapd_2040_coex_action(struct hos
+ 	if (!(iface->conf->ht_capab & HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET))
+ 		return;
+ 
++	if (iface->conf->noscan || iface->conf->no_ht_coex)
++		return;
++
+ 	if (len < IEEE80211_HDRLEN + 2 + sizeof(*bc_ie))
+ 		return;
+ 
