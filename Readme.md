@@ -4,7 +4,9 @@ This project is a fork off of the Mana-Toolkit's modified hostapd (sensepost/hos
 Functionality of their HostAPD has not been changed, I have just bundled a couple different projects together.
 
 Added Realtek's RTL8188 driver to HostAPD from http://www.realtek.com/downloads/downloadsView.aspx?Langid=1&PNid=21&PFid=48&Level=5&Conn=4&DownTypeID=3&GetDown=false&Downloads=true
+
 Patched Realtek's drivers with pritambaral/hostapd-rtl871xdrv's patches and modified drivers
+
 Patched with OpenWRT's No-scan patch https://dev.openwrt.org/browser/trunk/package/network/services/hostapd/patches/300-noscan.patch
 
 The goal of this was to add better pen-testing support for the Raspberry Pi/Pi 2. Many Raspberry Pi users rely on the RTL8188 chipsets
