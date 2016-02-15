@@ -1,3 +1,7 @@
+
+Untested for effect. 
+
+
 hostapd MANA w/RTL8188/8192 chipsets!
 ================
 This project is a fork off of the Mana-Toolkit's modified hostapd (sensepost/hostapd-mana).
